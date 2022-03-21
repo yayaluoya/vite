@@ -238,6 +238,7 @@ export interface ViteDevServer {
    */
   close(): Promise<void>
   /**
+   * 打印服务器URL
    * Print server urls
    */
   printUrls(): void
@@ -285,8 +286,8 @@ export interface ViteDevServer {
    * @internal
    */
   _registerMissingImport:
-    | ((id: string, resolved: string, ssr: boolean | undefined) => void)
-    | null
+  | ((id: string, resolved: string, ssr: boolean | undefined) => void)
+  | null
   /**
    * @internal
    */
@@ -300,6 +301,7 @@ export interface ViteDevServer {
 export async function createServer(
   inlineConfig: InlineConfig = {}
 ): Promise<ViteDevServer> {
+  //解析书配置文件
   const config = await resolveConfig(inlineConfig, 'serve', 'development')
   const root = config.root
   const serverConfig = config.server
@@ -309,13 +311,16 @@ export async function createServer(
     middlewareMode = 'ssr'
   }
 
+  //Connect 是一个用于node的可扩展 HTTP 服务器框架，使用称为中间件的“插件” 。
   const middlewares = connect() as Connect.Server
   const httpServer = middlewareMode
     ? null
     : await resolveHttpServer(serverConfig, middlewares, httpsOptions)
+  //创建websocket服务
   const ws = createWebSocketServer(httpServer, config, httpsOptions)
 
   const { ignored = [], ...watchOptions } = serverConfig.watch || {}
+  //一个文件监听对象，用来监听文件的更改
   const watcher = chokidar.watch(path.resolve(root), {
     ignored: [
       '**/node_modules/**',
@@ -328,7 +333,9 @@ export async function createServer(
     ...watchOptions
   }) as FSWatcher
 
+  //创建模块视图，注意! 这里传了一个解析id的方法进去
   const moduleGraph: ModuleGraph = new ModuleGraph((url, ssr) =>
+    //这里要重视一下
     container.resolveId(url, undefined, { ssr })
   )
 
@@ -435,6 +442,7 @@ export async function createServer(
     process.stdin.on('end', exitProcess)
   }
 
+  //包缓存
   const { packageCache } = config
   const setPackageData = packageCache.set.bind(packageCache)
   packageCache.set = (id, pkg) => {
@@ -444,9 +452,11 @@ export async function createServer(
     return setPackageData(id, pkg)
   }
 
+  //监听文件变化
   watcher.on('change', async (file) => {
     file = normalizePath(file)
     if (file.endsWith('/package.json')) {
+      //删除包数据
       return invalidatePackageData(packageCache, file)
     }
     // invalidate module graph cache on file change
@@ -657,7 +667,7 @@ async function startServer(
 
 function createServerCloseFn(server: http.Server | null) {
   if (!server) {
-    return () => {}
+    return () => { }
   }
 
   let hasListened = false

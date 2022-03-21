@@ -79,27 +79,32 @@ cli
     // is ok here
     const { createServer } = await import('./server')
     try {
+      //创建server
       const server = await createServer({
+        //
         root,
         base: options.base,
         mode: options.mode,
         configFile: options.config,
         logLevel: options.logLevel,
         clearScreen: options.clearScreen,
+        //清除掉一些不必要的选项
         server: cleanOptions(options)
       })
 
+      //如果配置了不开启httpserver的话就抛出异常
       if (!server.httpServer) {
         throw new Error('HTTP server not available')
       }
 
+      //开始监听
       await server.listen()
 
       const info = server.config.logger.info
 
       info(
         colors.cyan(`\n  vite v${require('vite/package.json').version}`) +
-          colors.green(` dev server running at:\n`),
+        colors.green(` dev server running at:\n`),
         {
           clear: !server.config.logger.hasWarned
         }
@@ -148,7 +153,7 @@ cli
   .option(
     '--minify [minifier]',
     `[boolean | "terser" | "esbuild"] enable/disable minification, ` +
-      `or specify minifier to use (default: esbuild)`
+    `or specify minifier to use (default: esbuild)`
   )
   .option('--manifest', `[boolean] emit build manifest json`)
   .option('--ssrManifest', `[boolean] emit ssr manifest json`)

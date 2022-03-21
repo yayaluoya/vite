@@ -126,6 +126,13 @@ type PluginContext = Omit<
 
 export let parser = acorn.Parser
 
+/**
+ * 创建插件容器
+ * @param param0 
+ * @param moduleGraph 
+ * @param watcher 
+ * @returns 
+ */
 export async function createPluginContainer(
   { plugins, logger, root, build: { rollupOptions } }: ResolvedConfig,
   moduleGraph?: ModuleGraph,
@@ -159,11 +166,11 @@ export async function createPluginContainer(
   function warnIncompatibleMethod(method: string, plugin: string) {
     logger.warn(
       colors.cyan(`[plugin:${plugin}] `) +
-        colors.yellow(
-          `context method ${colors.bold(
-            `${method}()`
-          )} is not supported in serve mode. This plugin is likely not vite-compatible.`
-        )
+      colors.yellow(
+        `context method ${colors.bold(
+          `${method}()`
+        )} is not supported in serve mode. This plugin is likely not vite-compatible.`
+      )
     )
   }
 
@@ -258,7 +265,7 @@ export async function createPluginContainer(
 
     addWatchFile(id: string) {
       watchFiles.add(id)
-      ;(this._addedImports || (this._addedImports = new Set())).add(id)
+        ; (this._addedImports || (this._addedImports = new Set())).add(id)
       if (watcher) ensureWatchedFile(watcher, id, root)
     }
 
@@ -329,8 +336,8 @@ export async function createPluginContainer(
         position != null
           ? position
           : err.pos != null
-          ? err.pos
-          : // some rollup plugins, e.g. json, sets position instead of pos
+            ? err.pos
+            : // some rollup plugins, e.g. json, sets position instead of pos
             (err as any).position
 
       if (pos != null) {
@@ -360,7 +367,7 @@ export async function createPluginContainer(
             err.id = normalizePath(err.loc.file)
             try {
               code = fs.readFileSync(err.loc.file, 'utf-8')
-            } catch {}
+            } catch { }
           }
           err.frame = generateCodeFrame(code, err.loc)
         }
@@ -432,10 +439,10 @@ export async function createPluginContainer(
       if (!combinedMap) {
         return createIfNull
           ? new MagicString(this.originalCode).generateMap({
-              includeContent: true,
-              hires: true,
-              source: this.filename
-            })
+            includeContent: true,
+            hires: true,
+            source: this.filename
+          })
           : null
       }
       if (combinedMap !== this.combinedMap) {

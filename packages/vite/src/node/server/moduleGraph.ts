@@ -11,34 +11,54 @@ import {
 import { FS_PREFIX } from '../constants'
 import type { TransformResult } from './transformRequest'
 
+/**
+ * 模块节点
+ */
 export class ModuleNode {
   /**
+   * 公共服务url路径，以/开头
    * Public served url path, starts with /
    */
   url: string
   /**
+   * 解析的文件系统路径+查询
    * Resolved file system path + query
    */
   id: string | null = null
   file: string | null = null
   type: 'js' | 'css'
+  /** 模块信息 */
   info?: ModuleInfo
   meta?: Record<string, any>
+  /** 这里可以能是导入了该模块的模块 */
   importers = new Set<ModuleNode>()
+  /** 导入的模块 */
   importedModules = new Set<ModuleNode>()
+  /** 接受的Hmr Deps */
   acceptedHmrDeps = new Set<ModuleNode>()
   isSelfAccepting = false
+  /** 转换结果，就是打包后的结果 */
   transformResult: TransformResult | null = null
+  /** ssr转换结果 */
   ssrTransformResult: TransformResult | null = null
+  /** ssr模块 */
   ssrModule: Record<string, any> | null = null
+  /** 上次HMR时间戳 */
   lastHMRTimestamp = 0
 
   constructor(url: string) {
     this.url = url
+    /** 获取类型 */
     this.type = isDirectCSSRequest(url) ? 'css' : 'js'
   }
 }
 
+/**
+ * 使SSR模块无效
+ * @param mod 目标模块
+ * @param seen 
+ * @returns 
+ */
 function invalidateSSRModule(mod: ModuleNode, seen: Set<ModuleNode>) {
   if (seen.has(mod)) {
     return
@@ -48,17 +68,27 @@ function invalidateSSRModule(mod: ModuleNode, seen: Set<ModuleNode>) {
   mod.importers.forEach((importer) => invalidateSSRModule(importer, seen))
 }
 
+/**
+ * 解析的Url
+ */
 export type ResolvedUrl = [
   url: string,
   resolvedId: string,
   meta: object | null | undefined
 ]
 
+/**
+ * 模块图
+ */
 export class ModuleGraph {
+  /** url映射的模块 */
   urlToModuleMap = new Map<string, ModuleNode>()
+  /** id映射的模块 */
   idToModuleMap = new Map<string, ModuleNode>()
   // a single file may corresponds to multiple modules with different queries
+  /** 文件映射的模块，单个文件可以对应于具有不同查询的多个模块 */
   fileToModulesMap = new Map<string, Set<ModuleNode>>()
+  /** 安全模块路径 */
   safeModulesPath = new Set<string>()
 
   constructor(
@@ -66,8 +96,14 @@ export class ModuleGraph {
       url: string,
       ssr: boolean
     ) => Promise<PartialResolvedId | null>
-  ) {}
+  ) { }
 
+  /**
+   * 通过路径获取模块
+   * @param rawUrl 
+   * @param ssr 
+   * @returns 
+   */
   async getModuleByUrl(
     rawUrl: string,
     ssr?: boolean
@@ -76,14 +112,28 @@ export class ModuleGraph {
     return this.urlToModuleMap.get(url)
   }
 
+  /**
+   * 通过模块id获取模块
+   * @param id 
+   * @returns 
+   */
   getModuleById(id: string): ModuleNode | undefined {
     return this.idToModuleMap.get(removeTimestampQuery(id))
   }
 
+  /**
+   * 通过文件名获取模块
+   * @param file 
+   * @returns 
+   */
   getModulesByFile(file: string): Set<ModuleNode> | undefined {
     return this.fileToModulesMap.get(file)
   }
 
+  /**
+   * 文件更改时
+   * @param file 
+   */
   onFileChange(file: string): void {
     const mods = this.getModulesByFile(file)
     if (mods) {
@@ -94,6 +144,11 @@ export class ModuleGraph {
     }
   }
 
+  /**
+   * 使模块无效
+   * @param mod 
+   * @param seen 
+   */
   invalidateModule(mod: ModuleNode, seen: Set<ModuleNode> = new Set()): void {
     mod.info = undefined
     mod.transformResult = null
@@ -101,6 +156,9 @@ export class ModuleGraph {
     invalidateSSRModule(mod, seen)
   }
 
+  /**
+   * 全部模块无效
+   */
   invalidateAll(): void {
     const seen = new Set<ModuleNode>()
     this.idToModuleMap.forEach((mod) => {
@@ -109,6 +167,9 @@ export class ModuleGraph {
   }
 
   /**
+   * 根据模块的更新导入信息更新模块图
+  *如果存在不再有任何导入程序的依赖项，它们是
+  *作为一套返回。
    * Update the module graph based on a module's updated imports information
    * If there are dependencies that no longer have any importers, they are
    * returned as a Set.
@@ -139,7 +200,7 @@ export class ModuleGraph {
         dep.importers.delete(mod)
         if (!dep.importers.size) {
           // dependency no longer imported
-          ;(noLongerImported || (noLongerImported = new Set())).add(dep)
+          ; (noLongerImported || (noLongerImported = new Set())).add(dep)
         }
       }
     })
@@ -200,12 +261,17 @@ export class ModuleGraph {
     return mod
   }
 
+  // 对于传入的URL，重要的是:
+  // 1.移除HMR时间戳查询(？t=xxxx)
+  // 2.解析其扩展名，以便带或不带扩展名的URL都映射到
+  //相同的模块
   // for incoming urls, it is important to:
   // 1. remove the HMR timestamp query (?t=xxxx)
   // 2. resolve its extension so that urls with or without extension all map to
   // the same module
   async resolveUrl(url: string, ssr?: boolean): Promise<ResolvedUrl> {
     url = removeImportQuery(removeTimestampQuery(url))
+    //调用外部传入的解析id的方法解析出id
     const resolved = await this.resolveId(url, !!ssr)
     const resolvedId = resolved?.id || url
     const ext = extname(cleanUrl(resolvedId))

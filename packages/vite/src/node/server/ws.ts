@@ -67,7 +67,7 @@ export function createWebSocketServer(
       websocketServerOptions.port = port
     }
 
-    // vite dev server in middleware mode
+    // vite dev server in middleware mode中间件模式下的vite开发服务器
     wss = new WebSocket(websocketServerOptions)
   }
 
@@ -104,6 +104,7 @@ export function createWebSocketServer(
       }
 
       const stringified = JSON.stringify(payload)
+      //所有连接的客户端
       wss.clients.forEach((client) => {
         // readyState 1 means the connection is open
         if (client.readyState === 1) {
