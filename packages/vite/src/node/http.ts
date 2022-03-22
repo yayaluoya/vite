@@ -76,8 +76,8 @@ export interface CommonServerOptions {
  */
 export interface CorsOptions {
   origin?:
-    | CorsOrigin
-    | ((origin: string, cb: (err: Error, origins: CorsOrigin) => void) => void)
+  | CorsOrigin
+  | ((origin: string, cb: (err: Error, origins: CorsOrigin) => void) => void)
   methods?: string | string[]
   allowedHeaders?: string | string[]
   exposedHeaders?: string | string[]
@@ -89,6 +89,14 @@ export interface CorsOptions {
 
 export type CorsOrigin = boolean | string | RegExp | (string | RegExp)[]
 
+/**
+ * 解析出Http服务器
+ * 并用Connect.Server来充当中间件使用
+ * @param param0 
+ * @param app 
+ * @param httpsOptions 
+ * @returns 
+ */
 export async function resolveHttpServer(
   { proxy }: CommonServerOptions,
   app: Connect.Server,
@@ -97,6 +105,9 @@ export async function resolveHttpServer(
   /*
    * Some Node.js packages are known to be using this undocumented function,
    * notably "compression" middleware.
+   * 已知一些Node.js包使用了这个未记录的函数，
+    *特别是“压缩”中间件
+    这里Connect.Server原有的函数做了简单的修改
    */
   app.prototype._implicitHeader = function _implicitHeader() {
     this.writeHead(this.statusCode)
@@ -178,7 +189,7 @@ async function getCertificate(cacheDir?: string) {
     fsp
       .mkdir(cacheDir, { recursive: true })
       .then(() => fsp.writeFile(cachePath, content))
-      .catch(() => {})
+      .catch(() => { })
     return content
   }
 }

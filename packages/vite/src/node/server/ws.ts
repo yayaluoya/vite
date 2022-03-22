@@ -13,9 +13,13 @@ import type { Socket } from 'net'
 export const HMR_HEADER = 'vite-hmr'
 
 export interface WebSocketServer {
+  /** 监听事件 */
   on: WebSocketTypes.Server['on']
+  /** 取消监听事件 */
   off: WebSocketTypes.Server['off']
+  /** 发送 */
   send(payload: HMRPayload): void
+  /** 关闭 */
   close(): Promise<void>
 }
 
@@ -32,6 +36,10 @@ export function createWebSocketServer(
 
   if (wsServer) {
     wss = new WebSocket({ noServer: true })
+    /**
+     * 每次客户端请求 HTTP 升级时触发。 监听此事件是可选的，客户端不能坚持协议更改。
+      触发此事件后，请求的套接字将没有 'data' 事件监听器，这意味着需要绑定它才能处理发送到该套接字上的服务器的数据。
+     */
     wsServer.on('upgrade', (req, socket, head) => {
       if (req.headers['sec-websocket-protocol'] === HMR_HEADER) {
         wss.handleUpgrade(req, socket as Socket, head, (ws) => {

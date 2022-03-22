@@ -312,7 +312,10 @@ export async function createServer(
   }
 
   //Connect 是一个用于node的可扩展 HTTP 服务器框架，使用称为中间件的“插件” 。
+  // 它的实例就是一个http.createServer方法需要的参数，它本身是个方法，然后
+  // http的所有请求都会从这里经过，它在这个过程中充当中间件的角色
   const middlewares = connect() as Connect.Server
+
   const httpServer = middlewareMode
     ? null
     : await resolveHttpServer(serverConfig, middlewares, httpsOptions)
@@ -322,6 +325,7 @@ export async function createServer(
   const { ignored = [], ...watchOptions } = serverConfig.watch || {}
   //一个文件监听对象，用来监听文件的更改
   const watcher = chokidar.watch(path.resolve(root), {
+    //忽略
     ignored: [
       '**/node_modules/**',
       '**/.git/**',
@@ -333,13 +337,15 @@ export async function createServer(
     ...watchOptions
   }) as FSWatcher
 
-  //创建模块视图，注意! 这里传了一个解析id的方法进去
+  //创建模块视图，注意! 这里传了一个解析id的方法进去，同时只实例化了一个这个对象
   const moduleGraph: ModuleGraph = new ModuleGraph((url, ssr) =>
     //这里要重视一下
     container.resolveId(url, undefined, { ssr })
   )
 
   const container = await createPluginContainer(config, moduleGraph, watcher)
+
+  //关闭http服务
   const closeHttpServer = createServerCloseFn(httpServer)
 
   // eslint-disable-next-line prefer-const
@@ -665,6 +671,11 @@ async function startServer(
   return server
 }
 
+/**
+ * 创建一个服务关闭方法
+ * @param server 
+ * @returns 
+ */
 function createServerCloseFn(server: http.Server | null) {
   if (!server) {
     return () => { }

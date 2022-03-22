@@ -25,11 +25,15 @@ export class ModuleNode {
    * Resolved file system path + query
    */
   id: string | null = null
+  //文件路径
   file: string | null = null
   type: 'js' | 'css'
   /** 模块信息 */
   info?: ModuleInfo
   meta?: Record<string, any>
+  /**
+   * 注意：模块间的依赖关系是双向的，你导入了我，我就被你依赖了
+   */
   /** 这里可以能是导入了该模块的模块 */
   importers = new Set<ModuleNode>()
   /** 导入的模块 */
@@ -79,6 +83,7 @@ export type ResolvedUrl = [
 
 /**
  * 模块图
+ * 这个类实例就是用来管理模块的
  */
 export class ModuleGraph {
   /** url映射的模块 */
@@ -175,15 +180,21 @@ export class ModuleGraph {
    * returned as a Set.
    */
   async updateModuleInfo(
+    /** 目标模块 */
     mod: ModuleNode,
+    /** 导入的模块 */
     importedModules: Set<string | ModuleNode>,
+    /** 接受的模块 */
     acceptedModules: Set<string | ModuleNode>,
     isSelfAccepting: boolean,
     ssr?: boolean
   ): Promise<Set<ModuleNode> | undefined> {
     mod.isSelfAccepting = isSelfAccepting
+    //上一个
     const prevImports = mod.importedModules
+    //下一个，这里重置了下 mod.importedModules
     const nextImports = (mod.importedModules = new Set())
+    //不在导入的依赖项
     let noLongerImported: Set<ModuleNode> | undefined
     // update import graph
     for (const imported of importedModules) {
@@ -191,12 +202,17 @@ export class ModuleGraph {
         typeof imported === 'string'
           ? await this.ensureEntryFromUrl(imported, ssr)
           : imported
+      //这里可以证明这个importers是存的导入了该模块的模块
       dep.importers.add(mod)
+      //重新添加到依赖的模块中
       nextImports.add(dep)
     }
     // remove the importer from deps that were imported but no longer are.
+    //从已导入但不再存在的dep中删除导入程序
     prevImports.forEach((dep) => {
+      //如果不存在于新生成的导入set中
       if (!nextImports.has(dep)) {
+        //删除目标模块的模块依赖列表中的当前模块
         dep.importers.delete(mod)
         if (!dep.importers.size) {
           // dependency no longer imported
@@ -205,6 +221,7 @@ export class ModuleGraph {
       }
     })
     // update accepted hmr deps
+    // 更新接受的hmr部门
     const deps = (mod.acceptedHmrDeps = new Set())
     for (const accepted of acceptedModules) {
       const dep =
@@ -213,19 +230,30 @@ export class ModuleGraph {
           : accepted
       deps.add(dep)
     }
+
+    //返回不在导入的依赖项
     return noLongerImported
   }
 
+  /**
+   * 确保从url进入
+   * 就是通过一个url生成一个模块
+   */
   async ensureEntryFromUrl(rawUrl: string, ssr?: boolean): Promise<ModuleNode> {
     const [url, resolvedId, meta] = await this.resolveUrl(rawUrl, ssr)
+    //在缓存的url模块映射列表中找目标模块，如果找不到的话在实例化一个新的，同时加入到缓存中
     let mod = this.urlToModuleMap.get(url)
     if (!mod) {
       mod = new ModuleNode(url)
       if (meta) mod.meta = meta
+      //加入到url模块映射缓存中
       this.urlToModuleMap.set(url, mod)
       mod.id = resolvedId
+      //加入到id模块映射缓存中
       this.idToModuleMap.set(resolvedId, mod)
+      //文件路径 一个剔除掉哈希值和query值的干净路径字符串
       const file = (mod.file = cleanUrl(resolvedId))
+      //从文件模块映射中找对应的模块映射
       let fileMappedModules = this.fileToModulesMap.get(file)
       if (!fileMappedModules) {
         fileMappedModules = new Set()
@@ -240,6 +268,11 @@ export class ModuleGraph {
   // url because they are inlined into the main css import. But they still
   // need to be represented in the module graph so that they can trigger
   // hmr in the importing css file.
+  // 有些dep，比如通过@import引用的css文件，没有自己的dep
+  // url，因为它们被内联到主css导入中。但是他们仍然
+  //需要在模块图中表示，以便它们可以触发
+  //导入css文件中的hmr
+  //创建仅文件条目
   createFileOnlyEntry(file: string): ModuleNode {
     file = normalizePath(file)
     let fileMappedModules = this.fileToModulesMap.get(file)
