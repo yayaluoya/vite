@@ -5,7 +5,7 @@ if (!__dirname.includes('node_modules')) {
   try {
     // only available as dev dependency
     require('source-map-support').install()
-  } catch (e) {}
+  } catch (e) { }
 }
 
 global.__vite_start_time = performance.now()
@@ -39,6 +39,7 @@ if (debugIndex > 0) {
 }
 
 function start() {
+  console.log('vite开始');
   require('../dist/node/cli')
 }
 

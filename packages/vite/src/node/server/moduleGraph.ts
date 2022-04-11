@@ -10,6 +10,7 @@ import {
 } from '../utils'
 import { FS_PREFIX } from '../constants'
 import type { TransformResult } from './transformRequest'
+import { log } from 'console'
 
 /**
  * 模块节点
@@ -53,7 +54,9 @@ export class ModuleNode {
   constructor(url: string) {
     this.url = url
     /** 获取类型 */
-    this.type = isDirectCSSRequest(url) ? 'css' : 'js'
+    this.type = isDirectCSSRequest(url) ? 'css' : 'js';
+
+    log('创建ModuleNode', url);
   }
 }
 
@@ -101,7 +104,10 @@ export class ModuleGraph {
       url: string,
       ssr: boolean
     ) => Promise<PartialResolvedId | null>
-  ) { }
+  ) {
+
+    log('创建ModuleGraph');
+  }
 
   /**
    * 通过路径获取模块

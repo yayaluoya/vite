@@ -73,7 +73,7 @@ export const deepImportRE = /^([^@][^/]*)\/|^(@[^/]+\/[^/]+)\//
 export let isRunningWithYarnPnp: boolean
 try {
   isRunningWithYarnPnp = Boolean(require('pnpapi'))
-} catch {}
+} catch { }
 
 const ssrExtensions = ['.js', '.cjs', '.json', '.node']
 
@@ -105,7 +105,7 @@ export function nestedResolveFrom(
     for (const pkg of pkgs) {
       basedir = resolveFrom(pkg, basedir, preserveSymlinks)
     }
-  } catch {}
+  } catch { }
   return basedir
 }
 
@@ -120,6 +120,12 @@ interface DebuggerOptions {
 
 export type ViteDebugScope = `vite:${string}`
 
+/**
+ * 创建调试器
+ * @param namespace 
+ * @param options 
+ * @returns 
+ */
 export function createDebugger(
   namespace: ViteDebugScope,
   options: DebuggerOptions = {}
@@ -221,9 +227,8 @@ export function injectQuery(url: string, queryToInject: string): string {
     pathname = pathname.slice(1)
   }
   pathname = decodeURIComponent(pathname)
-  return `${pathname}?${queryToInject}${search ? `&` + search.slice(1) : ''}${
-    hash || ''
-  }`
+  return `${pathname}?${queryToInject}${search ? `&` + search.slice(1) : ''}${hash || ''
+    }`
 }
 
 const timestampRE = /\bt=\d{13}&?\b/
@@ -376,8 +381,7 @@ export function generateCodeFrame(
         if (j < 0 || j >= lines.length) continue
         const line = j + 1
         res.push(
-          `${line}${' '.repeat(Math.max(3 - String(line).length, 0))}|  ${
-            lines[j]
+          `${line}${' '.repeat(Math.max(3 - String(line).length, 0))}|  ${lines[j]
           }`
         )
         const lineLength = lines[j].length
@@ -601,9 +605,9 @@ export function resolveHostname(
   // Set host name to localhost when possible, unless the user explicitly asked for '127.0.0.1'
   const name =
     (optionsHost !== '127.0.0.1' && host === '127.0.0.1') ||
-    host === '0.0.0.0' ||
-    host === '::' ||
-    host === undefined
+      host === '0.0.0.0' ||
+      host === '::' ||
+      host === undefined
       ? 'localhost'
       : host
 

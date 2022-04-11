@@ -343,6 +343,7 @@ export async function createServer(
     container.resolveId(url, undefined, { ssr })
   )
 
+  /** 容器 */
   const container = await createPluginContainer(config, moduleGraph, watcher)
 
   //关闭http服务

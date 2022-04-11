@@ -135,7 +135,9 @@ export let parser = acorn.Parser
  */
 export async function createPluginContainer(
   { plugins, logger, root, build: { rollupOptions } }: ResolvedConfig,
+  /** 模块视图 */
   moduleGraph?: ModuleGraph,
+  /** 文件监听 */
   watcher?: FSWatcher
 ): Promise<PluginContainer> {
   const isDebug = process.env.DEBUG
@@ -215,7 +217,10 @@ export async function createPluginContainer(
 
   // we should create a new context for each async hook pipeline so that the
   // active plugin in that pipeline can be tracked in a concurrency-safe manner.
-  // using a class to make creating new contexts more efficient
+  // using a class to make creating new contexts more efficient.
+  // 我们应该为每个异步钩子管道创建一个新的上下文，这样
+  //可以以并发安全方式跟踪管道中的活动插件。
+  //使用类来提高创建新上下文的效率
   class Context implements PluginContext {
     meta = minimalContext.meta
     ssr = false
