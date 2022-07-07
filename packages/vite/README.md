@@ -1,5 +1,7 @@
 # vite ⚡
 
+# vite的源码就放到这儿的
+
 > Next Generation Frontend Tooling
 
 - 💡 Instant Server Start
@@ -8,6 +10,13 @@
 - 📦 Optimized Build
 - 🔩 Universal Plugin Interface
 - 🔑 Fully Typed APIs
+
+💡即时服务器启动
+⚡️闪电般快速的HMR
+🛠️丰富的功能
+📦优化制造
+🔩通用接口
+🔑全类型 API
 
 Vite (French word for "fast", pronounced `/vit/`) is a new breed of frontend build tool that significantly improves the frontend development experience. It consists of two major parts:
 

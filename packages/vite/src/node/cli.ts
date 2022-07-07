@@ -8,6 +8,12 @@ import { createLogger } from './logger'
 import { resolveConfig } from '.'
 import { preview } from './preview'
 
+/**
+ * vite 通过bin进来的入口
+ * 同时在bin中注入了一些东西到 global 和 process.env 中
+ */
+
+/** 一个命令行参数处理工具 */
 const cli = cac('vite')
 
 // global options
@@ -29,6 +35,7 @@ interface GlobalCLIOptions {
 
 /**
  * removing global flags before passing as command specific sub-configs
+ * 就是删除op上GlobalCLIOptions的配置，返回多出的那些东西
  */
 function cleanOptions<Options extends GlobalCLIOptions>(
   options: Options
@@ -51,35 +58,36 @@ function cleanOptions<Options extends GlobalCLIOptions>(
 }
 
 cli
-  .option('-c, --config <file>', `[string] use specified config file`)
-  .option('--base <path>', `[string] public base path (default: /)`)
+  .option('-c, --config <file>', `[string] use specified config file 使用指定的配置文件`)
+  .option('--base <path>', `[string] public base path (default: /) 公共基路径`)
   .option('-l, --logLevel <level>', `[string] info | warn | error | silent`)
   .option('--clearScreen', `[boolean] allow/disable clear screen when logging`)
-  .option('-d, --debug [feat]', `[string | boolean] show debug logs`)
-  .option('-f, --filter <filter>', `[string] filter debug logs`)
-  .option('-m, --mode <mode>', `[string] set env mode`)
+  .option('-d, --debug [feat]', `[string | boolean] show debug logs 显示调试日志`)
+  .option('-f, --filter <filter>', `[string] filter debug logs 过滤调试日志`)
+  .option('-m, --mode <mode>', `[string] set env mode 设定环境模式`)
 
 // dev
 cli
-  .command('[root]') // default command
+  .command('[root]') // default command 默认命令
   .alias('serve') // the command is called 'serve' in Vite's API
   .alias('dev') // alias to align with the script name
-  .option('--host [host]', `[string] specify hostname`)
-  .option('--port <port>', `[number] specify port`)
-  .option('--https', `[boolean] use TLS + HTTP/2`)
-  .option('--open [path]', `[boolean | string] open browser on startup`)
-  .option('--cors', `[boolean] enable CORS`)
-  .option('--strictPort', `[boolean] exit if specified port is already in use`)
+  .option('--host [host]', `[string] specify hostname 指定主机名`)
+  .option('--port <port>', `[number] specify port 指定端口`)
+  .option('--https', `[boolean] use TLS + HTTP/2 使用TLS + HTTP/2`)
+  .option('--open [path]', `[boolean | string] open browser on startup 启动时打开浏览器`)
+  .option('--cors', `[boolean] enable CORS 启用CORS`)
+  .option('--strictPort', `[boolean] exit if specified port is already in use 如果指定的端口已被使用，则退出`)
   .option(
     '--force',
-    `[boolean] force the optimizer to ignore the cache and re-bundle`
+    `[boolean] force the optimizer to ignore the cache and re-bundle 强制优化器忽略缓存并重新绑定`
   )
+  //开始 root 为这个命令的值 options 为选项和选项对应的值
   .action(async (root: string, options: ServerOptions & GlobalCLIOptions) => {
     // output structure is preserved even after bundling so require()
     // is ok here
     const { createServer } = await import('./server')
     try {
-      //创建server
+      //创建server 把命令行的选项传入server启动函数里面
       const server = await createServer({
         //
         root,

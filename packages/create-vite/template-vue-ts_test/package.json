@@ -7,7 +7,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vite": "F:\\\\work\\\\_\\\\vite\\\\packages\\\\vite",
+    "vite": "file:../../vite",
     "vue": "^3.2.25"
   },
   "devDependencies": {

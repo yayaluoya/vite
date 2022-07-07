@@ -1,6 +1,10 @@
 /// <reference lib="dom" />
 /// <reference path="./types/importMeta.d.ts" />
 
+/**
+ * 客户端用的声明文件
+ */
+
 // CSS modules
 type CSSModuleClasses = { readonly [key: string]: string }
 
@@ -169,21 +173,21 @@ declare module '*.pdf' {
 // web worker
 declare module '*?worker' {
   const workerConstructor: {
-    new (): Worker
+    new(): Worker
   }
   export default workerConstructor
 }
 
 declare module '*?worker&inline' {
   const workerConstructor: {
-    new (): Worker
+    new(): Worker
   }
   export default workerConstructor
 }
 
 declare module '*?sharedworker' {
   const sharedWorkerConstructor: {
-    new (): SharedWorker
+    new(): SharedWorker
   }
   export default sharedWorkerConstructor
 }

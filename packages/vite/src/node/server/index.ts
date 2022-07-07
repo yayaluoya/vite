@@ -301,7 +301,7 @@ export interface ViteDevServer {
 export async function createServer(
   inlineConfig: InlineConfig = {}
 ): Promise<ViteDevServer> {
-  //解析书配置文件
+  //解析出配置文件
   const config = await resolveConfig(inlineConfig, 'serve', 'development')
   const root = config.root
   const serverConfig = config.server

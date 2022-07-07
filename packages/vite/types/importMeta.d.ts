@@ -4,6 +4,9 @@
 
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 
+//此文件是对内置ImportMeta接口的增强，通过静态注入的方式注入到浏览器运行时的
+//因此不能包含任何顶级导入
+
 interface ImportMeta {
   url: string
 
@@ -48,6 +51,7 @@ interface ImportMeta {
     }
   }
 
+  /** 环境变量 */
   readonly env: ImportMetaEnv
 
   glob(pattern: string): Record<
