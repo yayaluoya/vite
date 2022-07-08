@@ -298,6 +298,12 @@ export interface ViteDevServer {
   _pendingRequests: Map<string, Promise<TransformResult | null>>
 }
 
+/**
+ * 创建服务
+ * 参数为命令行带过来的配置参数
+ * @param inlineConfig 
+ * @returns 
+ */
 export async function createServer(
   inlineConfig: InlineConfig = {}
 ): Promise<ViteDevServer> {

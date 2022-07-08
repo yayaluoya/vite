@@ -93,6 +93,7 @@ cli
         root,
         base: options.base,
         mode: options.mode,
+        //注意这里换了个名字
         configFile: options.config,
         logLevel: options.logLevel,
         clearScreen: options.clearScreen,
@@ -100,7 +101,7 @@ cli
         server: cleanOptions(options)
       })
 
-      //如果配置了不开启httpserver的话就抛出异常
+      //如果找不到服务的话就抛出异常
       if (!server.httpServer) {
         throw new Error('HTTP server not available')
       }

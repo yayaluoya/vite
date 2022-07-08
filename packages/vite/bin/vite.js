@@ -10,6 +10,7 @@ if (!__dirname.includes('node_modules')) {
 }
 
 //全局注入一个vite的开始时间
+//TODO 全局变量
 global.__vite_start_time = performance.now()
 
 // check debug mode first before requiring the CLI. # check debug mode first before requiring the CLI.
@@ -35,6 +36,7 @@ if (debugIndex > 0) {
   //到这里value的值就可能是 vite:* 或者 vite:a,vite:b,vite:c
 
   //吧调试的值注入到全局变量变量里
+  //TODO 全局变量
   process.env.DEBUG = value
 
   //这里说明只有在有debug参数的时候才会去处理filter的参数值
@@ -42,6 +44,7 @@ if (debugIndex > 0) {
     const filter = process.argv[filterIndex + 1]
     if (filter && !filter.startsWith('-')) {
       //把过滤器的值注入到全局变量里面
+      //TODO 全局变量
       process.env.VITE_DEBUG_FILTER = filter
     }
   }
@@ -62,6 +65,7 @@ if (profileIndex > 0) {
   }
   // node的一个调试工具，可以实现在浏览器调试node的代码
   const inspector = require('inspector')
+  //TODO 全局变量
   const session = (global.__vite_profile_session = new inspector.Session())
   session.connect()
   session.post('Profiler.enable', () => {

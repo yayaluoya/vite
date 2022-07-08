@@ -285,9 +285,9 @@ export type ResolveFn = (
 
 /**
  * 解析配置文件
- * @param inlineConfig 
+ * @param inlineConfig 命令行带入的参数
  * @param command 
- * @param defaultMode 
+ * @param defaultMode 默认的模式
  * @returns 
  */
 export async function resolveConfig(
@@ -298,6 +298,7 @@ export async function resolveConfig(
 ): Promise<ResolvedConfig> {
   //从命令行传入的配置数据
   let config = inlineConfig
+  // 配置中的依赖列表
   let configFileDependencies: string[] = []
   //模式
   let mode = inlineConfig.mode || defaultMode
@@ -305,7 +306,9 @@ export async function resolveConfig(
   // some dependencies e.g. @vue/compiler-* relies on NODE_ENV for getting
   // production-specific behavior, so set it here even though we haven't
   // resolve the final mode yet
+  // 如果是生产环境的话就存到一个全局变量中
   if (mode === 'production') {
+    //TODO 全局变量
     process.env.NODE_ENV = 'production'
   }
 
@@ -322,10 +325,12 @@ export async function resolveConfig(
       configEnv,
       configFile,
       config.root,
-      config.logLevel
+      config.logLevel,
     )
     if (loadResult) {
+      //合并配置文件
       config = mergeConfig(loadResult.config, config)
+      //
       configFile = loadResult.path
       configFileDependencies = loadResult.dependencies
     }
@@ -821,27 +826,41 @@ export function sortUserPlugins(
   return [prePlugins, normalPlugins, postPlugins]
 }
 
+/**
+ * 从文件加载配置文件
+ * @param configEnv 
+ * @param configFile 
+ * @param configRoot 
+ * @param logLevel 
+ * @returns 
+ */
 export async function loadConfigFromFile(
   configEnv: ConfigEnv,
   configFile?: string,
   configRoot: string = process.cwd(),
   logLevel?: LogLevel
 ): Promise<{
+  /** 配置文件的路径 */
   path: string
+  /** 配置内容 */
   config: UserConfig
+  /** 依赖列表 */
   dependencies: string[]
 } | null> {
   const start = performance.now()
   const getTime = () => `${(performance.now() - start).toFixed(2)}ms`
 
+  //配置文件的路径
   let resolvedPath: string | undefined
   let isTS = false
   let isESM = false
   let dependencies: string[] = []
 
   // check package.json for type: "module" and set `isMjs` to true
+  // 这里只是为了判断项目是否是使用esm规范的模块
   try {
     const pkg = lookupFile(configRoot, ['package.json'])
+    //判断是否使用的是esm的规范，如果不是module则默认使用CommonJs规范
     if (pkg && JSON.parse(pkg).type === 'module') {
       isESM = true
     }
@@ -849,16 +868,22 @@ export async function loadConfigFromFile(
 
   if (configFile) {
     // explicit config path is always resolved from cwd
+    // 只用path.resolve方法就能获取一个绝对的路径，根本就不用通过判断是否是绝对路径再来拼接cwd的路径
     resolvedPath = path.resolve(configFile)
+    //如果配置文件是ts结尾的则表示是ts项目
     isTS = configFile.endsWith('.ts')
 
+    // 如果配置文件是.mjs结尾的就表示使用esm模块，因为node就是根据这个来判断是否是esm模块的
     if (configFile.endsWith('.mjs')) {
       isESM = true
     }
   } else {
     // implicit config file loaded from inline root (if present)
     // otherwise from cwd
+    // 从当前项目路径下隐式配置文件
+    // 最后会通过三种后缀去查找 .js .mjs .ts
     const jsconfigFile = path.resolve(configRoot, 'vite.config.js')
+
     if (fs.existsSync(jsconfigFile)) {
       resolvedPath = jsconfigFile
     }
@@ -880,6 +905,7 @@ export async function loadConfigFromFile(
     }
   }
 
+  //如果还没找到配置文件的路径的话就抛出异常
   if (!resolvedPath) {
     debug('no config file found.')
     return null
@@ -888,7 +914,9 @@ export async function loadConfigFromFile(
   try {
     let userConfig: UserConfigExport | undefined
 
+    // 如果配置文件是esm规范的话
     if (isESM) {
+      //pathToFileURL确保path绝对解析，并且在转换为文件 URL 时正确编码 URL 控制字符。
       const fileUrl = require('url').pathToFileURL(resolvedPath)
       const bundled = await bundleConfigFile(resolvedPath, true)
       dependencies = bundled.dependencies
@@ -897,10 +925,12 @@ export async function loadConfigFromFile(
         // with --experimental-loader themselves, we have to do a hack here:
         // bundle the config file w/ ts transforms first, write it to disk,
         // load it with native Node ESM, then delete the file.
+        // 这里先生成.js的文件，然后加载，加载完了再删除
         fs.writeFileSync(resolvedPath + '.js', bundled.code)
         userConfig = (await dynamicImport(`${fileUrl}.js?t=${Date.now()}`))
           .default
         fs.unlinkSync(resolvedPath + '.js')
+        //然后打印加载了目标配置的提示
         debug(`TS + native esm config loaded in ${getTime()}`, fileUrl)
       } else {
         // using Function to avoid this from being compiled away by TS/Rollup
@@ -911,6 +941,7 @@ export async function loadConfigFromFile(
       }
     }
 
+    // 这里的处理很特殊，好像是处理不是.js.mjs.ts结尾的文件
     if (!userConfig) {
       // Bundle config file and transpile it to cjs using esbuild.
       const bundled = await bundleConfigFile(resolvedPath)
@@ -919,9 +950,12 @@ export async function loadConfigFromFile(
       debug(`bundled config file loaded in ${getTime()}`)
     }
 
+    //此时得到的userConfig是用户定义的，它可以是个异步或者同步的返回config的方法，也肯能直接是个config
     const config = await (typeof userConfig === 'function'
       ? userConfig(configEnv)
       : userConfig)
+
+    //如果此时获取的config不是对象的话就报错
     if (!isObject(config)) {
       throw new Error(`config must export or return an object.`)
     }
@@ -941,8 +975,8 @@ export async function loadConfigFromFile(
 
 /**
  * 打包配置文件信息，因为配置文件不一定是js写的，所有这里要打包一次
- * @param fileName 
- * @param isESM 
+ * @param fileName 文件路径
+ * @param isESM 是否是esm模块规范
  * @returns 
  */
 async function bundleConfigFile(
@@ -964,10 +998,13 @@ async function bundleConfigFile(
       {
         name: 'externalize-deps',
         setup(build) {
+          //esbuild 的这个回调会在filter指定的模块的每个导入路径上运行
           build.onResolve({ filter: /.*/ }, (args) => {
             const id = args.path
+            // 如果path不是以.开头的，并且它不是一个绝对路径，则它是一个包
             if (id[0] !== '.' && !path.isAbsolute(id)) {
               return {
+                // 将此设置true为将模块标记为external，这意味着它不会包含在包中，而是会在运行时导入。
                 external: true
               }
             }
@@ -975,6 +1012,7 @@ async function bundleConfigFile(
         }
       },
       {
+        //静态替换掉一些东西  
         name: 'replace-import-meta',
         setup(build) {
           build.onLoad({ filter: /\.[jt]s$/ }, async (args) => {
@@ -982,6 +1020,7 @@ async function bundleConfigFile(
             return {
               loader: args.path.endsWith('.ts') ? 'ts' : 'js',
               contents: contents
+                //这里把import.meta.url替换成文件路径，只是为了做兼容处理
                 .replace(
                   /\bimport\.meta\.url\b/g,
                   JSON.stringify(`file://${args.path}`)
@@ -1000,6 +1039,7 @@ async function bundleConfigFile(
   const { text } = result.outputFiles[0]
   return {
     code: text,
+    //esbuild打包后的metafile中的inputs，应该是该文件的依赖列表
     dependencies: result.metafile ? Object.keys(result.metafile.inputs) : []
   }
 }
@@ -1008,12 +1048,21 @@ interface NodeModuleWithCompile extends NodeModule {
   _compile(code: string, filename: string): any
 }
 
+/**
+ * 从捆绑文件加载配置
+ * @param fileName 
+ * @param bundledCode 
+ * @returns 
+ */
 async function loadConfigFromBundledFile(
   fileName: string,
   bundledCode: string
 ): Promise<UserConfig> {
+  //扩展名
   const extension = path.extname(fileName)
+  // require.extensions 指定require如何处理某些文件的扩展名，先获取原来的处理器
   const defaultLoader = require.extensions[extension]!
+  // 再封装一下这个处理器
   require.extensions[extension] = (module: NodeModule, filename: string) => {
     if (filename === fileName) {
       ; (module as NodeModuleWithCompile)._compile(bundledCode, filename)
@@ -1025,6 +1074,7 @@ async function loadConfigFromBundledFile(
   delete require.cache[require.resolve(fileName)]
   const raw = require(fileName)
   const config = raw.__esModule ? raw.default : raw
+  //在替换为原先的处理器
   require.extensions[extension] = defaultLoader
   return config
 }
