@@ -298,7 +298,7 @@ export async function resolveConfig(
 ): Promise<ResolvedConfig> {
   //从命令行传入的配置数据
   let config = inlineConfig
-  // 配置中的依赖列表
+  // 配置文件中的依赖列表
   let configFileDependencies: string[] = []
   //模式
   let mode = inlineConfig.mode || defaultMode
@@ -328,7 +328,7 @@ export async function resolveConfig(
       config.logLevel,
     )
     if (loadResult) {
-      //合并配置文件
+      //合并配置文件，配置文件中的配置和命令行中的配置合并
       config = mergeConfig(loadResult.config, config)
       //
       configFile = loadResult.path
@@ -336,36 +336,50 @@ export async function resolveConfig(
     }
   }
 
+  // 这个时候config已经全部处理完毕了，接下来是项目开始前要做的一些琐事
+
   // Define logger
+  // 定义记录器，就是一个在命令行打印提示的东西
+  // 可以自定义把输出打印到其它地方
   const logger = createLogger(config.logLevel, {
     allowClearScreen: config.clearScreen,
     customLogger: config.customLogger
   })
 
   // user config may provide an alternative mode. But --mode has a higher priority
+  // 用户配置可以提供另一种模式。但是- mode具有更高的优先级
   mode = inlineConfig.mode || config.mode || mode
   configEnv.mode = mode
 
   // resolve plugins
+  // 解析插件，获取原始的用户插件列表
   const rawUserPlugins = (config.plugins || []).flat().filter((p) => {
     if (!p) {
       return false
     } else if (!p.apply) {
       return true
     } else if (typeof p.apply === 'function') {
+      // 如果apply是个方法的话就把当前的配置，mode传过去来获取是否过滤这个插件
       return p.apply({ ...config, mode }, configEnv)
     } else {
+      //然后通过apply的类型来过滤
       return p.apply === command
     }
   }) as Plugin[]
+
+  // 根据插件的调用层来排序
   const [prePlugins, normalPlugins, postPlugins] =
     sortUserPlugins(rawUserPlugins)
 
   // run config hooks
   const userPlugins = [...prePlugins, ...normalPlugins, ...postPlugins]
+
+  // 调用插件处理配置文件的hooks
   for (const p of userPlugins) {
     if (p.config) {
+      // 调用处理config的方法
       const res = await p.config(config, configEnv)
+      // 然后合并到当前主配置文件上
       if (res) {
         config = mergeConfig(config, res)
       }
@@ -373,10 +387,12 @@ export async function resolveConfig(
   }
 
   // resolve root
+  // 解析根路径，主要是把根路径转成绝对路径
   const resolvedRoot = normalizePath(
     config.root ? path.resolve(config.root) : process.cwd()
   )
 
+  /** 添加客户端上用的别名 */
   const clientAlias = [
     { find: /^[\/]?@vite\/env/, replacement: () => ENV_ENTRY },
     { find: /^[\/]?@vite\/client/, replacement: () => CLIENT_ENTRY }
@@ -720,23 +736,37 @@ function resolveBaseUrl(
   return base
 }
 
+/**
+ * 递归合并配置
+ * @param defaults 
+ * @param overrides 
+ * @param rootPath 
+ * @returns 
+ */
 function mergeConfigRecursively(
   defaults: Record<string, any>,
   overrides: Record<string, any>,
   rootPath: string
 ) {
   const merged: Record<string, any> = { ...defaults }
+
+  //这里必须是以新配置来覆盖默认配置
   for (const key in overrides) {
+    /** 新配置中的值 */
     const value = overrides[key]
     if (value == null) {
       continue
     }
 
+    /** 默认配置中的值 */
     const existing = merged[key]
+
+    //如果两个配置中的值都为数组的话则合并这个数组
     if (Array.isArray(existing) && Array.isArray(value)) {
       merged[key] = [...existing, ...value]
       continue
     }
+    //如果两个配置中的值都为对象的话，则合并这个对象，顺便和key链传进去
     if (isObject(existing) && isObject(value)) {
       merged[key] = mergeConfigRecursively(
         existing,
@@ -749,6 +779,7 @@ function mergeConfigRecursively(
     // fields that require special handling
     if (existing != null) {
       if (key === 'alias' && (rootPath === 'resolve' || rootPath === '')) {
+        //合并别名配置，实际上没做啥事情
         merged[key] = mergeAlias(existing, value)
         continue
       } else if (key === 'assetsInclude' && rootPath === '') {
@@ -759,6 +790,7 @@ function mergeConfigRecursively(
       }
     }
 
+    //直接覆盖原值
     merged[key] = value
   }
   return merged
@@ -766,8 +798,8 @@ function mergeConfigRecursively(
 
 /**
  * 合并配置文件
- * @param defaults 
- * @param overrides 
+ * @param defaults 原来的配置
+ * @param overrides 新的配置
  * @param isRoot 
  * @returns 
  */
@@ -780,6 +812,7 @@ export function mergeConfig(
 }
 
 function mergeAlias(a: AliasOptions = [], b: AliasOptions = []): Alias[] {
+  /** 直接合并两个数组，并对两个数组的值做处理 */
   return [...normalizeAlias(a), ...normalizeAlias(b)]
 }
 
@@ -797,6 +830,7 @@ function normalizeAlias(o: AliasOptions): Alias[] {
 // https://github.com/vitejs/vite/issues/1363
 // work around https://github.com/rollup/plugins/issues/759
 function normalizeSingleAlias({ find, replacement }: Alias): Alias {
+  //如果find和replacement都是/结尾的，则把它们末尾的/都去掉，反之则直接返回原来内容
   if (
     typeof find === 'string' &&
     find.endsWith('/') &&
@@ -808,6 +842,11 @@ function normalizeSingleAlias({ find, replacement }: Alias): Alias {
   return { find, replacement }
 }
 
+/**
+ * 对用户的插件进行排序
+ * @param plugins 
+ * @returns 
+ */
 export function sortUserPlugins(
   plugins: (Plugin | Plugin[])[] | undefined
 ): [Plugin[], Plugin[], Plugin[]] {

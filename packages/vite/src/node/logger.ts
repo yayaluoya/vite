@@ -15,10 +15,13 @@ export type LogLevel = LogType | 'silent'
 export interface Logger {
   info(msg: string, options?: LogOptions): void
   warn(msg: string, options?: LogOptions): void
+  /** 只打印一次的消息 */
   warnOnce(msg: string, options?: LogOptions): void
   error(msg: string, options?: LogErrorOptions): void
   clearScreen(type: LogType): void
+  /** 是否打印过异常消息 */
   hasErrorLogged(error: Error | RollupError): boolean
+  /** 已经发出警告 */
   hasWarned: boolean
 }
 
@@ -40,8 +43,12 @@ export const LogLevels: Record<LogLevel, number> = {
 
 let lastType: LogType | undefined
 let lastMsg: string | undefined
+/** 相同计数 */
 let sameCount = 0
 
+/**
+ * 清除屏幕的内容
+ */
 function clearScreen() {
   const repeatCount = process.stdout.rows - 2
   const blank = repeatCount > 0 ? '\n'.repeat(repeatCount) : ''
@@ -51,8 +58,11 @@ function clearScreen() {
 }
 
 export interface LoggerOptions {
+  /** 前缀 */
   prefix?: string
+  /** 允许清除屏幕，这个屏幕指的是终端的屏幕 */
   allowClearScreen?: boolean
+  /** 自定义的logger */
   customLogger?: Logger
 }
 
@@ -60,45 +70,66 @@ export function createLogger(
   level: LogLevel = 'info',
   options: LoggerOptions = {}
 ): Logger {
+
+  // 如果有自定义的logger则直接返回自定义的logger
   if (options.customLogger) {
     return options.customLogger
   }
 
+  // 弱引用的一个异常收集器
   const loggedErrors = new WeakSet<Error | RollupError>()
+
   const { prefix = '[vite]', allowClearScreen = true } = options
+
   const thresh = LogLevels[level]
+
+  /** 是否能清屏 */
+  /**
+   * isTTY 表示这个流是否是tty模块的实例，它永远都是true，用来区分普通的可写流和tty模块的流
+   * TODO env.CI 暂时不知道是啥东西
+   */
   const canClearScreen =
     allowClearScreen && process.stdout.isTTY && !process.env.CI
-  const clear = canClearScreen ? clearScreen : () => {}
+
+  const clear = canClearScreen ? clearScreen : () => { }
 
   function output(type: LogType, msg: string, options: LogErrorOptions = {}) {
+    // 必须当前当前配置的log等级大于当前log操作的等级才行，就相当于是个简单的权限验证
     if (thresh >= LogLevels[type]) {
       const method = type === 'info' ? 'log' : type
       const format = () => {
+        //必须要有时间戳才给msg加颜色
         if (options.timestamp) {
           const tag =
             type === 'info'
               ? colors.cyan(colors.bold(prefix))
               : type === 'warn'
-              ? colors.yellow(colors.bold(prefix))
-              : colors.red(colors.bold(prefix))
+                ? colors.yellow(colors.bold(prefix))
+                : colors.red(colors.bold(prefix))
           return `${colors.dim(new Date().toLocaleTimeString())} ${tag} ${msg}`
         } else {
           return msg
         }
       }
+
+      // 如果有异常则加到异常列表中
       if (options.error) {
         loggedErrors.add(options.error)
       }
+
+      //如果要清屏的话就先清屏，不然的话直接打印消息
       if (canClearScreen) {
         if (type === lastType && msg === lastMsg) {
           sameCount++
           clear()
+          //会多打印这个消息的相同个数
           console[method](format(), colors.yellow(`(x${sameCount + 1})`))
         } else {
+          //记录下当前的消息和消息类型，以便判断下一个消息是否是和上一个消息一样的
           sameCount = 0
           lastMsg = msg
           lastType = type
+          //
           if (options.clear) {
             clear()
           }
@@ -112,6 +143,7 @@ export function createLogger(
 
   const warnedMessages = new Set<string>()
 
+  /** logger对象，实现logger接口就行 */
   const logger: Logger = {
     hasWarned: false,
     info(msg, opts) {
@@ -132,6 +164,7 @@ export function createLogger(
       output('error', msg, opts)
     },
     clearScreen(type) {
+      // 只有够权限的时候才清屏
       if (thresh >= LogLevels[type]) {
         clear()
       }
