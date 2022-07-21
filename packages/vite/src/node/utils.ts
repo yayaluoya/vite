@@ -628,6 +628,11 @@ export function resolveHostname(
   return { host, name }
 }
 
+/**
+ * 数组化
+ * @param target 
+ * @returns 
+ */
 export function arraify<T>(target: T | T[]): T[] {
   return Array.isArray(target) ? target : [target]
 }

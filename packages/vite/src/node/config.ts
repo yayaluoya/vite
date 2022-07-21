@@ -188,6 +188,7 @@ export interface UserConfig {
   envDir?: string
   /**
    * Env variables starts with `envPrefix` will be exposed to your client source code via import.meta.env.
+   * 以EnvPrefix开头的env变量将通过import.meta.env向您的客户端源代码公开
    * @default 'VITE_'
    */
   envPrefix?: string | string[]
@@ -399,6 +400,7 @@ export async function resolveConfig(
   ]
 
   // resolve alias with internal client alias
+  // 使用内部客户端别名解析别名
   const resolvedAlias = mergeAlias(
     // @ts-ignore because @rollup/plugin-alias' type doesn't allow function
     // replacement, but its implementation does work with function values.
@@ -406,6 +408,7 @@ export async function resolveConfig(
     config.resolve?.alias || config.alias || []
   )
 
+  // 解析选项
   const resolveOptions: ResolvedConfig['resolve'] = {
     dedupe: config.dedupe,
     ...config.resolve,
@@ -413,9 +416,11 @@ export async function resolveConfig(
   }
 
   // load .env files
+  // 环境文件的地址
   const envDir = config.envDir
     ? normalizePath(path.resolve(resolvedRoot, config.envDir))
     : resolvedRoot
+  // 环境配置
   const userEnv =
     inlineConfig.envFile !== false &&
     loadEnv(mode, envDir, resolveEnvPrefix(config))
@@ -423,6 +428,7 @@ export async function resolveConfig(
   // Note it is possible for user to have a custom mode, e.g. `staging` where
   // production-like behavior is expected. This is indicated by NODE_ENV=production
   // loaded from `.staging.env` and set by us as VITE_USER_NODE_ENV
+  // 是否是生产模式
   const isProduction = (process.env.VITE_USER_NODE_ENV || mode) === 'production'
   if (isProduction) {
     // in case default mode was not production and is overwritten
@@ -430,7 +436,11 @@ export async function resolveConfig(
   }
 
   // resolve public base url
+  // 解析base路径
   const BASE_URL = resolveBaseUrl(config.base, command === 'build', logger)
+
+  // 解析打包配置
+  // TODO 暂时不看
   const resolvedBuildOptions = resolveBuildOptions(
     resolvedRoot,
     config.build,
@@ -438,15 +448,18 @@ export async function resolveConfig(
   )
 
   // resolve cache directory
+  // 解析缓存目录
   const pkgPath = lookupFile(
     resolvedRoot,
     [`package.json`],
     true /* pathOnly */
   )
+  // 如果配置了缓存目录的话就用缓存目录，如果没配置的话就存到当面项目目录的node_modules/.vite目录下
   const cacheDir = config.cacheDir
     ? path.resolve(resolvedRoot, config.cacheDir)
     : pkgPath && path.join(path.dirname(pkgPath), `node_modules/.vite`)
 
+  // 资源过滤，应该是打包会用的
   const assetsFilter = config.assetsInclude
     ? createFilter(config.assetsInclude)
     : () => false
@@ -707,6 +720,7 @@ function resolveBaseUrl(
   }
 
   // external URL
+  // 外部路径
   if (isExternalUrl(base)) {
     if (!isBuild) {
       // get base from full url during dev
@@ -1118,11 +1132,19 @@ async function loadConfigFromBundledFile(
   return config
 }
 
+/**
+ * 
+ * @param mode 加载环境变量
+ * @param envDir 
+ * @param prefixes 
+ * @returns 
+ */
 export function loadEnv(
   mode: string,
   envDir: string,
   prefixes: string | string[] = 'VITE_'
 ): Record<string, string> {
+  // local 不能作为模式名，因为回合默认的.env.local重名
   if (mode === 'local') {
     throw new Error(
       `"local" cannot be used as a mode name because it conflicts with ` +
@@ -1140,6 +1162,7 @@ export function loadEnv(
 
   // check if there are actual env variables starting with VITE_*
   // these are typically provided inline and should be prioritized
+  // 在node运行时环境找满足条件的值注入到env中
   for (const key in process.env) {
     if (
       prefixes.some((prefix) => key.startsWith(prefix)) &&
@@ -1150,6 +1173,7 @@ export function loadEnv(
   }
 
   for (const file of envFiles) {
+    //递归往上层查找文件
     const path = lookupFile(envDir, [file], true)
     if (path) {
       const parsed = dotenv.parse(fs.readFileSync(path), {
@@ -1180,10 +1204,16 @@ export function loadEnv(
   return env
 }
 
+/**
+ * 解析env的前缀
+ * @param param0 
+ * @returns 
+ */
 export function resolveEnvPrefix({
   envPrefix = 'VITE_'
 }: UserConfig): string[] {
   envPrefix = arraify(envPrefix)
+  // 如果有配置为空字符串的话直接抛出异常
   if (envPrefix.some((prefix) => prefix === '')) {
     throw new Error(
       `envPrefix option contains value '', which could lead unexpected exposure of sensitive information.`

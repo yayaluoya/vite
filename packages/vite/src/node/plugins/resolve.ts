@@ -48,6 +48,7 @@ export interface ResolveOptions {
   mainFields?: string[]
   conditions?: string[]
   extensions?: string[]
+  /** 重复数据删除 */
   dedupe?: string[]
   preserveSymlinks?: boolean
 }
@@ -260,7 +261,7 @@ export function resolvePlugin(baseOptions: InternalResolveOptions): Plugin {
             if (!asSrc) {
               debug(
                 `externalized node built-in "${id}" to empty module. ` +
-                  `(imported by: ${colors.white(colors.dim(importer))})`
+                `(imported by: ${colors.white(colors.dim(importer))})`
               )
             }
             return isProduction
@@ -280,8 +281,8 @@ export function resolvePlugin(baseOptions: InternalResolveOptions): Plugin {
           : `export default new Proxy({}, {
   get() {
     throw new Error('Module "${id.slice(
-      browserExternalId.length + 1
-    )}" has been externalized for browser compatibility and cannot be accessed in client code.')
+            browserExternalId.length + 1
+          )}" has been externalized for browser compatibility and cannot be accessed in client code.')
   }
 })`
       }
@@ -474,7 +475,7 @@ export function tryNodeResolve(
   const nestedPath = id.substring(lastArrowIndex + 1).trim()
 
   const possiblePkgIds: string[] = []
-  for (let prevSlashIndex = -1; ; ) {
+  for (let prevSlashIndex = -1; ;) {
     let slashIndex = nestedPath.indexOf('/', prevSlashIndex + 1)
     if (slashIndex < 0) {
       slashIndex = nestedPath.length
@@ -615,8 +616,7 @@ export function tryOptimizedResolve(
   const getOptimizedUrl = (optimizedData: typeof depData.optimized[string]) => {
     return (
       optimizedData.file +
-      `?v=${depData.browserHash}${
-        optimizedData.needsInterop ? `&es-interop` : ``
+      `?v=${depData.browserHash}${optimizedData.needsInterop ? `&es-interop` : ``
       }`
     )
   }
@@ -766,8 +766,8 @@ export function resolvePackageEntry(
 function packageEntryFailure(id: string, details?: string) {
   throw new Error(
     `Failed to resolve entry for package "${id}". ` +
-      `The package may have incorrect main/module/exports specified in its package.json` +
-      (details ? ': ' + details : '.')
+    `The package may have incorrect main/module/exports specified in its package.json` +
+    (details ? ': ' + details : '.')
   )
 }
 
@@ -827,7 +827,7 @@ function resolveDeepImport(
     if (!relativeId) {
       throw new Error(
         `Package subpath '${relativeId}' is not defined by "exports" in ` +
-          `${path.join(dir, 'package.json')}.`
+        `${path.join(dir, 'package.json')}.`
       )
     }
   } else if (targetWeb && isObject(browserField)) {
